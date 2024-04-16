@@ -4,8 +4,9 @@
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 module Parser where 
 
-import Data.Char ( isAlpha, isAlphaNum, isDigit, digitToInt )
-import Control.Applicative ( Alternative((<|>), empty, many) )
+import Data.Char ( isAlpha, isAlphaNum, isDigit, digitToInt, isSpace )
+import Control.Applicative ( Alternative((<|>), empty, many, some) )
+import Expr
 
 keywords :: [String]
 keywords = ["if", "then", "else"]
@@ -100,66 +101,51 @@ satisfy p = Parser $ \str ->
     (h:t) | p h -> Just (t, h) 
     _ -> Nothing
 
--- Ident = Alpha AlphaNum*
--- starts with letter 
--- continues with a sequence (possibly empty) of letter or digits
-parseIdent' :: Parser String
-parseIdent' = do 
-    h <- satisfy isAlpha -- the first character is a letter
-    t <- go              -- then follows a sequence of letters or digits
-    return (h : t)       -- we compose the result 
-  where 
-    go = (do                    -- a sequence of symbols is a symbol followed by the sequence or an empty sequence. 
-        x <- satisfy isAlphaNum -- the first symbol is either a letter or a digit
-        y <- go                 -- then goes the sequence
-        return (x : y))         -- and we return the result 
-      <|>  
-        return []               -- note that we only parse the empty sequence of letters after we've tried to match the non-empty sequence 
-                                -- experiment by switching the order and see what happens then. 
+parseInteger :: Num a => Parser (Expr a)
+parseInteger = do
+    digits <- some $ satisfy isDigit
+    return $ fromInteger $ toInteger (foldl (\n d -> n*10 + d) 0 (map digitToInt digits))
 
--- This function creates a parser for something surrounded by parentheses. 
--- Both parentheses and the "something" are parameters. 
-inParens :: Char -> Char -> Parser a -> Parser a 
-inParens l r p = do 
-  satisfy (== l) -- we don't bind the result of parsing here (btw, what is its type?) because we don't need it
-  x <- p         -- the only thing we need is the result of parsing the "something"
-  satisfy (== r) -- throw away this result also 
-  return x       -- no parentheses made it into the result 
+parseIdentifier :: Parser String
+parseIdentifier = do
+    h <- satisfy isAlpha
+    t <- many $ satisfy isAlphaNum
+    return (h:t)
 
--- A tuple is a sequence of identifiers, separated by ',' in parentheses
-parseIdentTuple :: Parser [String]
-parseIdentTuple = inParens '(' ')' identSequence 
+parseVariable :: Parser (Expr a)
+parseVariable = do
+    word <- parseIdentifier
+    if elem word keywords
+        then Parser $ \_ -> Nothing
+        else return $ Var word
 
--- This parser not only parses the list of identifiers, but also computes their lengths
-parseIdentList :: Parser [Int]
-parseIdentList = map length <$> inParens '[' ']' identSequence 
+parseSqrt :: Num a => Parser (Expr a)
+parseSqrt = do
+    ident <- parseIdentifier
+    case ident of
+        "sqrt" -> do
+            some $ satisfy isSpace
+            innerExpr <- parseExpr
+            return $ UnOp Sqrt innerExpr
+        _ -> Parser $ \_ -> Nothing
 
--- A pair is two identifiers with a comma in between, surrounded by parentheses
-parsePair :: Parser (String, String) 
-parsePair = inParens '(' ')' $ do  
-  x <- parseIdent' 
-  satisfy (== ',')
-  y <- parseIdent'
-  return (x, y)
+parseBinaryOp  :: Num a => Parser (Expr a)
+parseBinaryOp = do
+    op <- binopChar
+    some $ satisfy isSpace
+    e1 <- parseExpr
+    some $ satisfy isSpace
+    e2 <- parseExpr
+    return $ op e1 e2
+    where
+        binopChar = do
+            opChar <- satisfy $ \c -> c `elem` "+-*/^"
+            return (case opChar of
+                '+' -> BinOp Plus
+                '-' -> BinOp Minus
+                '*' -> BinOp Mult
+                '/' -> BinOp Div
+                '^' -> BinOp Pow)
 
--- This is the same parser as parsePair written in the applicative style
--- <* functions the same ways as does <*> but ignores its result on the right
-parsePair' :: Parser (String, String) 
-parsePair' = inParens '(' ')' 
-  ((,) <$> parseIdent' <* satisfy (== ',') <*> parseIdent')
-
--- A sequence of identifiers separated by commas is: 
--- a single identifier followed by a sequence of comma-identifier pairs
--- or an empty sequence. 
--- Here we use the function `many :: Alternative f => f a -> f [a]` which applies its argument multiple times (until the first failure)
--- and then collects the results in the list. 
--- The function `>>` is the same as `>>=`, but it ignores its left result, only performing the effect. 
-identSequence :: Parser [String]
-identSequence = (do
-    h <- parseIdent' 
-    t <- many (satisfy (== ',') >> parseIdent') 
-    return (h : t)
-  )
-  <|> 
-    return [] 
-
+parseExpr :: Num a =>  Parser (Expr a)
+parseExpr = parseInteger <|> parseSqrt <|> parseVariable <|> parseBinaryOp

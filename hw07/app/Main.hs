@@ -1,7 +1,7 @@
 module Main (main) where
 
 import Expr
-import ExprParser
+import Parser
 import Eval
 import Text.Read (readMaybe)
 import Text.Printf (printf)
