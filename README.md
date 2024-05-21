@@ -7,7 +7,7 @@ A project is to be done by a single student, no teamwork allowed.
 The maximum number of points for a project is 100, with concrete subtasks having different values. 
 
 Each project should be followed by a written report in which the following topics are discussed: 
-
+1
 * What the task was.
 * The architecture of your solution. 
 * Why certain architecture dessisions were done.
