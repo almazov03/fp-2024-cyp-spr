@@ -1,0 +1,31 @@
+1. f x y z = x (\t -> y t z) z
+
+2. a) (\x -> x x) (\x -> x x) -- Omega combinator, it goes to an infinite loop
+   b) \f.(\x.f(xx))(\x.f(xx)) -- fixed point operator( it's infinite combinator)
+   c) And any other self operator
+   
+3. We have the type: (a -> b, a -> c).
+   The isomoriphic type: a -> (b, c)
+   Proof:
+   f :: (a -> b, a -> c) -> (a -> (b, c))
+   f (g', h') = \x -> (g' x, h' x)
+   
+   g :: a -> (b, c) -> (a -> b, a -> c)
+   g f' = (\x -> fst (f' x), \x -> snd (f' x))
+   
+   Proven back and forth
+   
+   
+ 4. S K' I :: a -> b -> a
+   Proof:
+   S  :: (a -> b -> c) -> (a -> b) -> a -> c
+   K' :: a -> b -> a
+   I  :: a -> a
+   
+   Applying S to K'  :: (a -> b -> a) -> (a -> b) -> a -> a
+   Applying SK' to I :: (a -> b) -> a -> b
+   
+   Thus, the final type of S K' I :: a -> b -> a
+   
+   
+   
