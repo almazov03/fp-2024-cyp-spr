@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module TicTacToe (playGame) where
+module TicTacToe where
 
 import Data.List (intersperse, transpose)
 import Data.Char (isDigit)
@@ -41,29 +41,27 @@ getNumPlayers = do
         else return num
 
 cyclePlayers :: Int -> [Player]
-cyclePlayers n = map PlayerN [1..n]
+cyclePlayers n = cycle $ map PlayerN [1..n]
 
 gameLoop :: Int -> Board -> [Player] -> IO ()
 gameLoop size board (player:players) = do
     printBoard board
-    if checkWin board
-        then putStrLn $ "Player " ++ show player ++ " wins!"
-        else if isFull board
-            then putStrLn "It's a draw!"
-            else do
-                putStrLn $ "Player " ++ show player ++ "'s turn."
-                move <- getMove size
-                case move of
-                    Just (r, c) -> do
-                        let newBoard = updateBoard board r c player
-                        if newBoard == board
-                            then do
-                                putStrLn "Invalid move, try again."
-                                gameLoop size board (player:players)
-                            else gameLoop size newBoard players
-                    Nothing -> do
-                        putStrLn "Invalid input, try again."
-                        gameLoop size board (player:players)
+    if isFull board then putStrLn "It's a draw!"
+    else do
+        putStrLn $ "Player " ++ show player ++ "'s turn."
+        move <- getMove size
+        case move of
+            Just (r, c) -> do
+                let newBoard = updateBoard board r c player
+                if newBoard == board then do
+                    putStrLn "Invalid move, try again."
+                    gameLoop size board (player:players)
+                else if checkWin newBoard player
+                then putStrLn $ "Player " ++ show player ++ " wins!"
+                else gameLoop size newBoard players
+            Nothing -> do
+                putStrLn "Invalid input, try again."
+                gameLoop size board (player:players)
 
 getMove :: Int -> IO (Maybe (Int, Int))
 getMove size = do
@@ -93,13 +91,13 @@ updateBoard board r c player =
 isFull :: Board -> Bool
 isFull = all (all (/= Nothing))
 
-checkWin :: Board -> Bool
-checkWin board = any isLine (rows ++ cols ++ diags)
+checkWin :: Board -> Player -> Bool
+checkWin board player = any (isLine player) (rows ++ cols ++ diags)
   where
     rows = board
     cols = transpose board
     diags = [diag board, diag (map reverse board)]
-    isLine line = all (== Just (PlayerN 1)) line || all (== Just (PlayerN 2)) line
+    isLine p line = all (== Just p) line
 
 diag :: [[a]] -> [a]
 diag b = [b !! n !! n | n <- [0..length b - 1]]

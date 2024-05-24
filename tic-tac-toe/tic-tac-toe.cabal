@@ -26,7 +26,6 @@ source-repository head
 library
   exposed-modules:
       Lib
-      Main
       TicTacToe
   other-modules:
       Paths_tic_tac_toe
